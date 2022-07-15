@@ -1,13 +1,15 @@
-//import Player from "player.js"
+//import { drawPlayer } from "./player.js";
 
 let canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
 //let acceleration = { x: 0, y: 0 };
 let bullets = [];//array pf all bullets {x: pos, y: pos, velx: int, vely: int, rotation: deg} for each bullet
+let asteroids = []; // array of all asteroids {x: pos, y: pos, velx: int, vely: int, rotation: deg}
 let inertia = 0.99;
 let rotation = 0;
 let rotationSpeed = 3;
+let asteroidSpeed = 3;
 let speed = 0.1;
 let bulletSpeed = 3;
 let velocity = { x: 0, y: 0 };
@@ -42,13 +44,59 @@ function animate() {
     //inertia
     velocity.x *= inertia;
     velocity.y *= inertia;
-    ctx.clearRect(0, 0, width, height);
-    drawPlayer();
-    drawShot();
-    // while there are bullets draw shots
+    ctx.clearRect(0, 0, width, height);// clear canvas
+    drawAllBullets(); // draw bullets
+
+    drawPlayer(); // draw player    
+    drawAllAsteroids();
 
 
 }
+
+function drawAsteroid(index) {
+    ctx.save();
+
+    ctx.translate(asteroids[index].x, asteroids[index].y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(20, 0);
+    ctx.lineTo(40, 20);
+    ctx.lineTo(40, 40);
+    ctx.lineTo(20, 60);
+    ctx.lineTo(0, 60);
+    ctx.lineTo(-20, 40);
+    ctx.lineTo(-20, 20);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function updateAsteroid(index) {
+    let asteroid = asteroids[index];
+    asteroid.x += asteroid.velx;
+    asteroid.y += asteroid.vely;
+}
+
+
+function drawAllAsteroids() {
+
+    if (Math.random() < 0.01)// add asteroid
+    {
+        var randNum = Math.random(); // asteroids {x: pos, y: pos, velx: int, vely: int, rotation: deg}
+        var asteroidDirection = randNum * 360;
+        asteroids.push({
+            x: randNum * width, y: randNum * height, velx: -Math.sin(-asteroidDirection * Math.PI / 180) * (randNum * asteroidSpeed),
+            vely: -Math.cos(-asteroidDirection * Math.PI / 180) * (randNum * asteroidSpeed), rotation: randNum * 360
+        });
+    }
+    for (var i = 0; i < asteroids.length; i++) {
+        updateAsteroid(i);
+        drawAsteroid(i);
+    }
+}
+
 
 function drawPlayer() {
     ctx.save();// save ctx
@@ -74,7 +122,7 @@ function drawPlayer() {
 
 }
 /**
- * function to update the position of bullets
+ * function to update the position of bullets, returns true if bullet is was incremented, false if bullet was popped
  * 
  * takes the index of a bullet in the bullets array
  * 
@@ -84,47 +132,53 @@ function updateShot(index) {
     if (inBounds(bullet.x, bullet.y)) {
         bullet.x += bullet.velx;
         bullet.y += bullet.vely;
+        return true;//
     }
     else {
-        console.log("popped " + index);
-        bullets.pop(index);
+        //bullets.pop(index);
+        bullets[index].x = -100;
+        return false;
     }
 
 }
 
+
+
+/**
+ * draws bullet
+ * @param {*} i index of the bullet to be drawn 
+ */
+function drawBullet(i) {
+    //console.log(bullets.length);
+
+    ctx.beginPath();
+    ctx.translate(bullets[i].x, bullets[i].y);
+    ctx.rotate(bullets[i].brotation * Math.PI / 180);
+    ctx.rect(0, 0, 5, 30);
+
+    ctx.closePath();
+    ctx.strokeStyle = '#ffffff';
+    ctx.fillStyle = '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fill();
+    ctx.stroke();
+}
 /**
  * function for drawing all the shots, updates the positiona and then draws them
  */
-function drawShot() {
+function drawAllBullets() {
     if (bullets.length > 0) {
-        //console.log(bullets.length);
-        ctx.beginPath();
-        for (let i = 0; i < bullets.length; i++) {
-
-
-            console.log("drawing")
-
-            //ctx.clearRect(0, 0, width, height);
-            //ctx.translate(bullets[i].x, bullets[i].y);
-            //ctx.rotate(bullets[i].rotation * Math.PI / 180);
-
-            ctx.rect(bullets[i].x, bullets[i].y, 30, 5);
-            //ctx.restore()
-            //ctx.closePath();
-            ctx.strokeStyle = '#ffffff';
-            ctx.fillStyle = '#000000';
-            ctx.lineWidth = 2;
-            //ctx.closePath();
-            //ctx.restore();
-            updateShot(i)// update bullets positions
+        for (var i = bullets.length - 1; i >= 0; i--) {
+            console.log("bullets length " + bullets.length);
+            // if bullet not popped draw bullet
+            updateShot(i)
+            if (bullets[i].x != -100) {
+                drawBullet(i);
+            }
         }
-        ctx.fill();
-        ctx.stroke();
-
-
     }
 }
-
 
 function accelerate() {
     velocity.x -= Math.sin(-rotation * Math.PI / 180) * speed;
@@ -147,7 +201,18 @@ function inBounds(x, y) {
         return true;
     }
 }
-
+/**
+ * pushes a bullet onto bullets array
+ * @param {*} x start x position of a bullet 
+ * @param {*} y start y position of a bullet
+ * @param {*} rotation rotation of ship when bullet is fired, will be angle of bullet
+ */
+function pushBullet(x, y, rotation) {
+    bullets.push({
+        x: position.x, y: position.y, velx: -Math.sin(-rotation * Math.PI / 180) * bulletSpeed,
+        vely: -Math.cos(-rotation * Math.PI / 180) * bulletSpeed, brotation: rotation
+    });// if player is firing append new bullet to list
+}
 /**
  * function to check what keys are pressed and ensure that these actions occur
  */
@@ -164,7 +229,7 @@ function checkKeys() {
         checkRotation();
     }
     if (keysDown.fire) {
-        bullets.push({ x: position.x, y: position.y, velx: -Math.sin(-rotation * Math.PI / 180) * bulletSpeed, vely: -Math.cos(-rotation * Math.PI / 180) * bulletSpeed, rotation: rotation });// if player is firing append new bullet to list
+        pushBullet(position.x, position.y, rotation);
         keysDown.fire = false;
     }
 }
