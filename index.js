@@ -7,7 +7,7 @@ let ctx = canvas.getContext("2d");
 let bullets = [];//array pf all bullets {x: pos, y: pos, velx: int, vely: int, rotation: deg} for each bullet
 let asteroids = []; // array of all asteroids {x: pos, y: pos, velx: int, vely: int, rotation: deg}
 let inertia = 0.99;
-let rotation = 0;
+
 let rotationSpeed = 3;
 let asteroidSpeed = 3;
 let speed = 0.1;
@@ -18,7 +18,9 @@ let height = innerHeight;
 let position = { x: width / 2, y: height / 2 };
 ctx.canvas.width = width;
 ctx.canvas.height = height;
-
+//let player = { position: }
+let player = new Player({ context: ctx });
+//const asteroid = new Asteroidclass({ name: "raven" });
 
 const keysDown = {
     up: false,
@@ -35,23 +37,66 @@ function animate() {
     document.addEventListener('keydown', keyPressed);
     document.addEventListener('keyup', keyReleased)
     checkKeys();
-    // moving player
-    if (!inBounds(position.x, position.y)) {
-        velocity = { x: 0, y: 0 };
-    }
-    position.x += velocity.x;
-    position.y += velocity.y;
-    //inertia
-    velocity.x *= inertia;
-    velocity.y *= inertia;
-    ctx.clearRect(0, 0, width, height);// clear canvas
-    drawAllBullets(); // draw bullets
 
-    drawPlayer(); // draw player    
+    ctx.clearRect(0, 0, width, height);// clear canvas
+    checkForCollisions();
+    drawAllBullets(); // draw bullets
+    player.drawPlayer(); // draw player    
     drawAllAsteroids();
 
+    cleanArrays(bullets);// clean arrays for bullets that are out of bounds
+    //cleanArrays(asteroids);
 
 }
+
+/**
+ * function to clean arrays if they have objects that are out of bounds
+ * 
+ * @param array the array that is to be cleaned
+ * 
+ */
+function cleanArrays(array) {
+    let index = 0;
+    for (let item of array) {
+        if (!inBounds(item)) {
+            array.splice(index, 1);
+        }
+        index++;
+    }
+}
+
+
+
+
+/**
+ * function to update the position of an object e.g a bullet or an asteroid
+ * @param {*} item 
+ */
+function updateObject(item) {
+    item.x += item.velx;
+    item.y += item.vely;
+}
+
+
+function checkForCollisions() {
+    // iterate tthorugh all asteroids
+    // if bullet is incontact with asteroid delete asteroid and bullet (may need to add to delete boolean for the objects)
+
+    for (let bullet of bullets) {
+        for (let asteroid of asteroids) {
+            if ((bullet.position.x > asteroid.x && bullet.position.x < asteroid.x + 60) &&
+                bullet.position.y > asteroid.y && bullet.position.y < asteroid.y + 60) {
+                console.log("COLLISION!!");
+                asteroid.x = -100;
+                bullet.position.x = -100;
+            }
+        }
+    }
+}
+
+
+
+
 
 function drawAsteroid(index) {
     ctx.save();
@@ -73,12 +118,6 @@ function drawAsteroid(index) {
     ctx.restore();
 }
 
-function updateAsteroid(index) {
-    let asteroid = asteroids[index];
-    asteroid.x += asteroid.velx;
-    asteroid.y += asteroid.vely;
-}
-
 
 function drawAllAsteroids() {
 
@@ -92,105 +131,37 @@ function drawAllAsteroids() {
         });
     }
     for (var i = 0; i < asteroids.length; i++) {
-        updateAsteroid(i);
+        //updateAsteroid(i);
+        updateObject(asteroids[i]);
         drawAsteroid(i);
     }
 }
 
 
-function drawPlayer() {
-    ctx.save();// save ctx
-
-    ctx.beginPath();
-
-    ctx.translate(position.x, position.y);
-    ctx.rotate(rotation * Math.PI / 180);
-    ctx.moveTo(0, -15);
-    ctx.lineTo(10, 10);
-    ctx.lineTo(5, 7);
-    ctx.lineTo(-5, 7);
-    ctx.lineTo(-10, 10);
-    ctx.closePath();
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.fillStyle = '#000000';
-    ctx.lineWidth = 2;
-
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-}
-/**
- * function to update the position of bullets, returns true if bullet is was incremented, false if bullet was popped
- * 
- * takes the index of a bullet in the bullets array
- * 
- */
-function updateShot(index) {
-    let bullet = bullets[index];
-    if (inBounds(bullet.x, bullet.y)) {
-        bullet.x += bullet.velx;
-        bullet.y += bullet.vely;
-        return true;//
-    }
-    else {
-        //bullets.pop(index);
-        bullets[index].x = -100;
-        return false;
-    }
-
-}
-
-
-
-/**
- * draws bullet
- * @param {*} i index of the bullet to be drawn 
- */
-function drawBullet(i) {
-    //console.log(bullets.length);
-
-    ctx.beginPath();
-    ctx.translate(bullets[i].x, bullets[i].y);
-    ctx.rotate(bullets[i].brotation * Math.PI / 180);
-    ctx.rect(0, 0, 5, 30);
-
-    ctx.closePath();
-    ctx.strokeStyle = '#ffffff';
-    ctx.fillStyle = '#FF0000';
-    ctx.lineWidth = 2;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fill();
-    ctx.stroke();
-}
 /**
  * function for drawing all the shots, updates the positiona and then draws them
  */
 function drawAllBullets() {
     if (bullets.length > 0) {
-        for (var i = bullets.length - 1; i >= 0; i--) {
+        for (let i = 0; i < bullets.length; i++) {
             console.log("bullets length " + bullets.length);
-            // if bullet not popped draw bullet
-            updateShot(i)
-            if (bullets[i].x != -100) {
-                drawBullet(i);
-            }
+            bullets[i].updateBullet();
+            bullets[i].drawBullet();
+
         }
     }
 }
 
-function accelerate() {
-    velocity.x -= Math.sin(-rotation * Math.PI / 180) * speed;
-    velocity.y -= Math.cos(-rotation * Math.PI / 180) * speed;
-}
+
 /**
  * Returns true if an object is in bounds of the canvas
  * @param  x x coord of object
  * @param  y y coord of an object
  * @returns 
  */
-function inBounds(x, y) {
+function inBounds(item) {
+    let x = item.position.x;
+    let y = item.position.y;
     if (x + velocity.x > width || x + velocity.x < 0) {
         return false;
     }
@@ -207,45 +178,40 @@ function inBounds(x, y) {
  * @param {*} y start y position of a bullet
  * @param {*} rotation rotation of ship when bullet is fired, will be angle of bullet
  */
-function pushBullet(x, y, rotation) {
-    bullets.push({
-        x: position.x, y: position.y, velx: -Math.sin(-rotation * Math.PI / 180) * bulletSpeed,
-        vely: -Math.cos(-rotation * Math.PI / 180) * bulletSpeed, brotation: rotation
-    });// if player is firing append new bullet to list
+function pushBullet() {
+    bullet = new Bullet({
+        position: {
+            x: player.position.x, y: player.position.y
+
+        }, velocity: {
+            x: -Math.sin(-player.rotation * Math.PI / 180) * bulletSpeed,
+            y: -Math.cos(-player.rotation * Math.PI / 180) * bulletSpeed
+        },
+        rotation: player.rotation
+    });
+
+    bullets.push(bullet);
 }
 /**
  * function to check what keys are pressed and ensure that these actions occur
  */
 function checkKeys() {
     if (keysDown.up) {
-        accelerate()
+        player.accelerate()
     }
     if (keysDown.left) {
-        rotation -= rotationSpeed;
-        checkRotation();
+        player.rotation -= rotationSpeed;
+        player.checkRotation();
     }
     if (keysDown.right) {
-        rotation += rotationSpeed;
-        checkRotation();
+        player.rotation += rotationSpeed;
+        player.checkRotation();
     }
     if (keysDown.fire) {
-        pushBullet(position.x, position.y, rotation);
+        pushBullet();
         keysDown.fire = false;
     }
 }
-
-
-function checkRotation() {
-    if (rotation >= 360) {
-        rotation -= 360;
-    }
-    else if (rotation < 0) {
-        rotation += 360
-    }
-
-
-}
-
 
 
 function keyPressed(e) {
